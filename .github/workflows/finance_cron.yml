@@ -27,7 +27,7 @@ jobs:
     - name: Installer les dépendances
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r requirments.txt
 
     # 4. Lance le script en lui passant les Secrets GitHub
     - name: Exécuter le script Python
