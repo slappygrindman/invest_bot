@@ -37,19 +37,11 @@ def get_investment_analysis() -> str:
             for i in range(1, len(close_list)):
                 prix_veille = close_list[i - 1]
                 prix_du_jour = close_list[i]
-                rendement = (prix_du_jour - prix_veille) / prix_veille
-                returns_list.append(rendement)
+                log_rdm_carre = (np.ln(prix_du_jour / prix_veille)**2)
+                returns_list.append(log_rdm_carre)
 
             # ÉTAPE 2 : Moyenne des rendements
-            moyenne_rendements = sum(returns_list) / len(returns_list)
-
-            # ÉTAPE 3 : Écart-type
-            somme_carres_ecarts = sum((r - moyenne_rendements) ** 2 for r in returns_list)
-            variance_quotidienne = somme_carres_ecarts / (len(returns_list) - 1)
-            std_quotidien = np.sqrt(variance_quotidienne)
-
-            # ÉTAPE 4 : Annualisation
-            volatilite_annuelle = std_quotidien * np.sqrt(252)
+            volatilite_annuelle = np.std(returns_list)*np.sqrt(252)
 
             df["volatility"] = volatilite_annuelle
 
@@ -59,43 +51,31 @@ def get_investment_analysis() -> str:
             # Momentum 6 mois
             df["Momentum6M"] = (close / close.shift(126) - 1)
 
-            # RSI
-            def compute_rsi(prices, period=14):
-                delta = prices.diff()
-                gain = delta.where(delta > 0, 0)
-                loss = -delta.where(delta < 0, 0)
-                avg_gain = gain.rolling(period).mean()
-                avg_loss = loss.rolling(period).mean()
-                rs = avg_gain / avg_loss
-                rsi = 100 - (100 / (1 + rs))
-                return rsi
+            # plus haut à 6 mois
+            haut_6 = max(close[-126:])
 
-            df["RSI"] = compute_rsi(close)
+            # plus haut à 3 mois
+            haut_3 = max(close[-63:])
+
             data[ticker] = df
 
             # Valeurs finales
             price    = df["Close"].to_numpy().flatten()[-1]
             ma200    = df["MA200"].to_numpy().flatten()[-1]
             vola     = df["volatility"].to_numpy().flatten()[-1]
-            rsi      = df["RSI"].to_numpy().flatten()[-1]
             momentum = df["Momentum6M"].to_numpy().flatten()[-1]
 
             print(f"\n========== {ticker} ==========")
             print(f"Prix = {round(price, 2)}")
             print(f"Volatilité : {round(vola, 2)}%")
             print(f"MA200 = {round(ma200, 2)}")
+            print(f"Plus haut 6 mois : ",haut_6)
+            print(f"Plus haut 3 mois : ",haut_3)
 
             if price > ma200:
                 print("Tendance MA200 : HAUSSIERE 🟢")
             else:
                 print("Tendance MA200 : BAISSIERE 🔴")
-
-            if rsi > 70:
-                print(f"RSI : {round(rsi, 2)} SURACHETE 🔴")
-            elif rsi < 30:
-                print(f"RSI : {round(rsi, 2)} SURVENDU 🟢")
-            else:
-                print(f"RSI : {round(rsi, 2)} NORMAL 🟠")
 
             if momentum > 0:
                 print(f"Momentum 6 mois : {round(momentum * 100, 2)}% POSITIF 🟢")
@@ -103,12 +83,8 @@ def get_investment_analysis() -> str:
                 print(f"Momentum 6 mois : {round(momentum * 100, 2)}% NEGATIF 🔴")
 
             print(f"\n===== Conseil pour {ticker} =====")
-            if price > ma200 and rsi < 70 and momentum > 0:
-                print("Acheter 🟢🟢")
-            elif rsi > 70 and price > ma200:
-                print("Vendre 🔴🔴")
-            else:
-                print("Attendre 🟠🟠")
+
+
 
     finally:
         sys.stdout = original_stdout
