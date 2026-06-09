@@ -41,7 +41,7 @@ def get_investment_analysis() -> str:
                 returns_list.append(log_rdm_carre)
 
             # ÉTAPE 2 : Moyenne des rendements
-            volatilite_annuelle = (np.sum(returns_list)/len(returns_list))*np.sqrt(252)*100
+            volatilite_annuelle = np.sqrt(np.sum(returns_list)*np.sqrt(252)*100
 
             df["volatility"] = volatilite_annuelle
 
