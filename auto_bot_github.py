@@ -69,7 +69,7 @@ def get_investment_analysis() -> str:
 
             print(f"\n========== {ticker} ==========")
             print(f"Prix = {round(price, 2)}")
-            print(f"Volatilité : {round(vola, 2)}%")
+            print(f"Volatilité sur 1 an: {round(vola, 2)}%")
             print(f"MA200 = {round(ma200, 2)}")
             print(f"Plus haut 6 mois : {round(pour_ht_6, 2)}%")
             print(f"Plus haut 3 mois : {round(pour_ht_3, 2)}%")
@@ -86,7 +86,12 @@ def get_investment_analysis() -> str:
 
             print(f"\n===== Conseil pour {ticker} =====")
 
-
+            if pour_ht_6 < -0.05 :
+                print("Premier achat")
+            elif pour_ht_6 < -0.05  et pour_ht_3 < -0.03:
+                pring("Second achat")
+            else :
+                print("Attendre")
 
     finally:
         sys.stdout = original_stdout
