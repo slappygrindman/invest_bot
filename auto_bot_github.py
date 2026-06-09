@@ -41,7 +41,7 @@ def get_investment_analysis() -> str:
                 returns_list.append(log_rdm_carre)
 
             # ÉTAPE 2 : Moyenne des rendements
-            volatilite_annuelle = np.sqrt(np.sum(returns_list))*np.sqrt(252)*100
+            volatilite_annuelle = np.sqrt(np.sum(returns_list))*np.sqrt(252)
 
             df["volatility"] = volatilite_annuelle
 
@@ -59,11 +59,11 @@ def get_investment_analysis() -> str:
 
             # plus haut à 6 mois
             haut_6 = max(close[-126:])
-            pour_ht_6 = (price-haut_6)/haut_6
+            pour_ht_6 = ((price-haut_6)/haut_6)*100
 
             # plus haut à 3 mois
             haut_3 = max(close[-63:])
-            pour_ht_3 = (price-haut_3)/haut_3
+            pour_ht_3 = ((price-haut_3)/haut_3)*100
 
             data[ticker] = df
 
@@ -71,8 +71,8 @@ def get_investment_analysis() -> str:
             print(f"Prix = {round(price, 2)}")
             print(f"Volatilité : {round(vola, 2)}%")
             print(f"MA200 = {round(ma200, 2)}")
-            print(f"Plus haut 6 mois : {round(pour_ht_6, 2)}")
-            print(f"Plus haut 3 mois : {round(pour_ht_3, 2)}")
+            print(f"Plus haut 6 mois : {round(pour_ht_6, 2)}%")
+            print(f"Plus haut 3 mois : {round(pour_ht_3, 2)}%")
 
             if price > ma200:
                 print("Tendance MA200 : HAUSSIERE 🟢")
