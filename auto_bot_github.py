@@ -28,7 +28,7 @@ def get_investment_analysis() -> str:
 
     try:
         for ticker in etfs:
-            df = yf.download(ticker, period="1y", progress=False)
+            df = yf.download(ticker, period="252d", progress=False)
             close = df["Close"].squeeze()
 
             # ÉTAPE 1 : Rendements journaliers
