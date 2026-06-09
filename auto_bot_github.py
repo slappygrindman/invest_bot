@@ -37,7 +37,7 @@ def get_investment_analysis() -> str:
             for i in range(1, len(close_list)):
                 prix_veille = close_list[i - 1]
                 prix_du_jour = close_list[i]
-                log_rdm_carre = (np.ln(prix_du_jour / prix_veille)**2)
+                log_rdm_carre = (np.log(prix_du_jour / prix_veille)**2)
                 returns_list.append(log_rdm_carre)
 
             # ÉTAPE 2 : Moyenne des rendements
