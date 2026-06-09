@@ -88,7 +88,7 @@ def get_investment_analysis() -> str:
 
             if pour_ht_6 < -0.05 :
                 print("Premier achat")
-            elif pour_ht_6 < -0.05  et pour_ht_3 < -0.03:
+            elif pour_ht_6 < -0.05  and pour_ht_3 < -0.03 :
                 pring("Second achat")
             else :
                 print("Attendre")
