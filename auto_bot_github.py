@@ -37,11 +37,11 @@ def get_investment_analysis() -> str:
             for i in range(1, len(close_list)):
                 prix_veille = close_list[i - 1]
                 prix_du_jour = close_list[i]
-                log_rdm_carre = (np.log(prix_du_jour / prix_veille)**2)
+                log_rdm_carre = (np.log(prix_du_jour / prix_veille))**2
                 returns_list.append(log_rdm_carre)
 
             # ÉTAPE 2 : Moyenne des rendements
-            volatilite_annuelle = np.std(returns_list)*np.sqrt(252)
+            volatilite_annuelle = (np.sum(returns_list)/len(returns_list))*np.sqrt(252)*100
 
             df["volatility"] = volatilite_annuelle
 
@@ -51,26 +51,28 @@ def get_investment_analysis() -> str:
             # Momentum 6 mois
             df["Momentum6M"] = (close / close.shift(126) - 1)
 
-            # plus haut à 6 mois
-            haut_6 = max(close[-126:])
-
-            # plus haut à 3 mois
-            haut_3 = max(close[-63:])
-
-            data[ticker] = df
-
             # Valeurs finales
             price    = df["Close"].to_numpy().flatten()[-1]
             ma200    = df["MA200"].to_numpy().flatten()[-1]
             vola     = df["volatility"].to_numpy().flatten()[-1]
             momentum = df["Momentum6M"].to_numpy().flatten()[-1]
 
+            # plus haut à 6 mois
+            haut_6 = max(close[-126:])
+            pour_ht_6 = (price-haut_6)/haut_6
+
+            # plus haut à 3 mois
+            haut_3 = max(close[-63:])
+            pour_ht_3 = (price-haut_3)/haut_3
+
+            data[ticker] = df
+
             print(f"\n========== {ticker} ==========")
             print(f"Prix = {round(price, 2)}")
             print(f"Volatilité : {round(vola, 2)}%")
             print(f"MA200 = {round(ma200, 2)}")
-            print(f"Plus haut 6 mois : ",haut_6)
-            print(f"Plus haut 3 mois : ",haut_3)
+            print(f"Plus haut 6 mois : ",{round(pour_ht_6, 2))
+            print(f"Plus haut 3 mois : ",{round(pour_ht_3, 2))
 
             if price > ma200:
                 print("Tendance MA200 : HAUSSIERE 🟢")
