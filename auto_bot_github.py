@@ -71,8 +71,8 @@ def get_investment_analysis() -> str:
             print(f"Prix = {round(price, 2)}")
             print(f"Volatilité : {round(vola, 2)}%")
             print(f"MA200 = {round(ma200, 2)}")
-            print(f"Plus haut 6 mois : ",{round(pour_ht_6, 2))
-            print(f"Plus haut 3 mois : ",{round(pour_ht_3, 2))
+            print(f"Plus haut 6 mois : {round(pour_ht_6, 2)}")
+            print(f"Plus haut 3 mois : {round(pour_ht_3, 2)}")
 
             if price > ma200:
                 print("Tendance MA200 : HAUSSIERE 🟢")
