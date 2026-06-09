@@ -86,12 +86,12 @@ def get_investment_analysis() -> str:
 
             print(f"\n===== Conseil pour {ticker} =====")
 
-            if pour_ht_6 < -0.05 :
-                print("Premier achat")
-            elif pour_ht_6 < -0.05  and pour_ht_3 < -0.03 :
-                pring("Second achat")
+            if pour_ht_6 < -5 :
+                print("Premier achat 💵​")
+            elif pour_ht_6 < -5  and pour_ht_3 < -3 :
+                pring("Second achat 💰")
             else :
-                print("Attendre")
+                print("Attendre ⏳​")
 
     finally:
         sys.stdout = original_stdout
