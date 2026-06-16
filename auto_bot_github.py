@@ -34,16 +34,16 @@ def get_investment_analysis() -> str:
             # ÉTAPE 1 : Rendements journaliers
             close_list = close.tolist()
             returns_list = []
-            for i in range(1, len(close_list)):
-                prix_veille = close_list[i - 1]
-                prix_du_jour = close_list[i]
-                log_rdm_carre = (np.log(prix_du_jour / prix_veille))**2
-                returns_list.append(log_rdm_carre)
+                for i in range(1, len(close_list)-126):
+                    prix_veille = close_list[i+126 - 1]
+                    prix_du_jour = close_list[i+126]
+                    log_rdm_carre = (np.log(prix_du_jour / prix_veille))**2
+                    returns_list.append(log_rdm_carre)
 
             # ÉTAPE 2 : Moyenne des rendements
-            volatilite_annuelle = np.sqrt(np.sum(returns_list))*np.sqrt(252)
+            volatilite_6m = np.sqrt(np.sum(returns_list)/np.mean(returns_list))*np.sqrt(252)
 
-            df["volatility"] = volatilite_annuelle
+            df["volatility"] = volatilite_6m
 
             # MA200
             df["MA200"] = close.rolling(window=200).mean()
