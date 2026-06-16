@@ -62,9 +62,6 @@ def get_investment_analysis() -> str:
             pour_ht_6 = ((price-haut_6)/haut_6)*100
 
             # plus haut à 3 mois
-            haut_3 = max(close[-63:])
-            pour_ht_3 = ((price-haut_3)/haut_3)*100
-
             data[ticker] = df
 
             print(f"\n========== {ticker} ==========")
@@ -72,7 +69,6 @@ def get_investment_analysis() -> str:
             print(f"Volatilité sur 1 an: {round(vola, 2)}%")
             print(f"MA200 = {round(ma200, 2)}")
             print(f"Plus haut 6 mois : {round(pour_ht_6, 2)}%")
-            print(f"Plus haut 3 mois : {round(pour_ht_3, 2)}%")
 
             if price > ma200:
                 print("Tendance MA200 : HAUSSIERE 🟢")
@@ -87,9 +83,7 @@ def get_investment_analysis() -> str:
             print(f"\n===== Conseil pour {ticker} =====")
 
             if pour_ht_6 < -5 :
-                print("Premier achat 💵​")
-            elif pour_ht_6 < -5  and pour_ht_3 < -3 :
-                print("Second achat 💰")
+                print("Premier achat 💲​")
             else :
                 print("Attendre ⏳​")
 
