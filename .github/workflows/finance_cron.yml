@@ -6,7 +6,7 @@ on:
   
   # Déclenchement automatique (Exemple : Tous les jours à 8h00 UTC)
   schedule:
-    - cron: '30 7 * * *'
+    - cron: '30 9 * * *'
 
 jobs:
   run-python-script:
