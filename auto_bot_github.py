@@ -57,11 +57,11 @@ def get_investment_analysis() -> str:
             pourc_haut_6m = (close[-1]-max_6)/max_6
 
             print(f"\n========== {ticker} ==========")
-            print(f"coef :", coef)
-            print(f"seuil * coef :", round(coef*seuil*100,2),"%")
-            print(f"max_6", max_6)
-            print(f"prix", close[-1])
-            print(f"pourcentage par rapport au plus haut à 6 mois", pourc_haut_6m,"%")
+            print(f"coef :", round(coef,3))
+            print(f"seuil * coef :", round(coef*seuil*100,3),"%")
+            print(f"max_6", round(max_6,3))
+            print(f"prix", round(close[-1],3))
+            print(f"Par rapport au plus haut à 6 mois :", round(pourc_haut_6m,3),"%")
 
             print(f"\n===== Conseil pour {ticker} =====")
 
