@@ -33,57 +33,40 @@ def get_investment_analysis() -> str:
 
             # ÉTAPE 1 : Rendements journaliers
             close_list = close.tolist()
-            returns_list = []
-                for i in range(1, len(close_list)-126):
-                    prix_veille = close_list[i+126 - 1]
-                    prix_du_jour = close_list[i+126]
-                    log_rdm_carre = (np.log(prix_du_jour / prix_veille))**2
-                    returns_list.append(log_rdm_carre)
+            seuil = -0.07
 
-            # ÉTAPE 2 : Moyenne des rendements
-            volatilite_6m = np.sqrt(np.sum(returns_list)/np.mean(returns_list))*np.sqrt(252)
+            moit = int(len(close_list)/2)
 
-            df["volatility"] = volatilite_6m
+            log_square = []
+            for i in range(1, len(close_list)):
+                prix_veille = close_list[i - 1]
+                prix_du_jour = close_list[i]
+                log_rdm_carre = (np.log(prix_du_jour / prix_veille))**2
+                log_square.append(log_rdm_carre)
 
-            # MA200
-            df["MA200"] = close.rolling(window=200).mean()
+            vola_6m = []
 
-            # Momentum 6 mois
-            df["Momentum6M"] = (close / close.shift(126) - 1)
+            for i in range(moit):
+                vola = np.sqrt(np.sum(log_square[i:(i+moit)])/
+                            moit)*np.sqrt(252)
+                log_square[:(i+moit)]
+                vola_6m.append(vola)
 
-            # Valeurs finales
-            price    = df["Close"].to_numpy().flatten()[-1]
-            ma200    = df["MA200"].to_numpy().flatten()[-1]
-            vola     = df["volatility"].to_numpy().flatten()[-1]
-            momentum = df["Momentum6M"].to_numpy().flatten()[-1]
-
-            # plus haut à 6 mois
-            haut_6 = max(close[-126:])
-            pour_ht_6 = ((price-haut_6)/haut_6)*100
-
-            # plus haut à 3 mois
-            data[ticker] = df
+            coef = vola_6m[-1]/np.median(vola_6m)
+            max_6 = max(close[moit:])
+            pourc_haut_6m = (close[-1]-max_6)/max_6
 
             print(f"\n========== {ticker} ==========")
-            print(f"Prix = {round(price, 2)}")
-            print(f"Volatilité sur 1 an: {round(vola, 2)}%")
-            print(f"MA200 = {round(ma200, 2)}")
-            print(f"Plus haut 6 mois : {round(pour_ht_6, 2)}%")
-
-            if price > ma200:
-                print("Tendance MA200 : HAUSSIERE 🟢")
-            else:
-                print("Tendance MA200 : BAISSIERE 🔴")
-
-            if momentum > 0:
-                print(f"Momentum 6 mois : {round(momentum * 100, 2)}% POSITIF 🟢")
-            else:
-                print(f"Momentum 6 mois : {round(momentum * 100, 2)}% NEGATIF 🔴")
+            print(f"coef :", coef)
+            print(f"seuil * coef :", round(coef*seuil*100,2),"%")
+            print(f"max_6", max_6)
+            print(f"prix", close[-1])
+            print(f"pourcentage par rapport au plus haut à 6 mois", pourc_haut_6m,"%")
 
             print(f"\n===== Conseil pour {ticker} =====")
 
-            if pour_ht_6 < -5 :
-                print("Premier achat 💲​")
+            if pourc_haut_6m < (seuil*coef) :
+                print("Achat 💲​")
             else :
                 print("Attendre ⏳​")
 
