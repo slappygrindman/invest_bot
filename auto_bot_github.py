@@ -20,7 +20,6 @@ def envoyer_telegram(message):
 # 2. Analyse complète des ETF
 def get_investment_analysis() -> str:
     etfs = ["PAEEM.PA", "WPEA.PA","LYTR.DE"]
-    data = {}
 
     output = io.StringIO()
     original_stdout = sys.stdout
@@ -49,7 +48,6 @@ def get_investment_analysis() -> str:
             for i in range(moit):
                 vola = np.sqrt(np.sum(log_square[i:(i+moit)])/
                             moit)*np.sqrt(252)
-                log_square[:(i+moit)]
                 vola_6m.append(vola)
 
             coef = vola_6m[-1]/np.median(vola_6m)
@@ -58,16 +56,16 @@ def get_investment_analysis() -> str:
 
             print(f"\n========== {ticker} ==========")
             print("Coef :", round(coef,3))
-            print("Seuil :", seuil*100,"%")
+            print("Seuil :", (seuil*100),"%")
             print("seuil * coef :", round(coef*seuil*100,3),"%")
             print("Plus haut à 6 mois :", round(max_6,3))
             print("Prix :", round(close.iloc[-1],3))
             print("Par rapport au plus haut à 6 mois :", round(pourc_haut_6m,3),"%")
 
             if pourc_haut_6m < (seuil*coef) :
-                print(f"\nAchat 💲​")
+                print("Achat 💲​")
             else :
-                print(f"\nAttendre ⏳​")
+                print("Attendre ⏳​")
 
     finally:
         sys.stdout = original_stdout
