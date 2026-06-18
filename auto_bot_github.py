@@ -76,7 +76,7 @@ def get_investment_analysis() -> str:
 
             print(f"\n========== {ticker} ==========")
             print("Coef :", round(coef,3))
-            print("Seuil :", round(seuil*100),1),"%")
+            print("Seuil :", round((seuil*100),1),"%")
             print("Seuil avec Coef :", round(coef*seuil*100,3),"%")
             print("Plus haut à 6 mois :", round(max_6,3))
             print("Prix :", round(close.iloc[-1],3))
