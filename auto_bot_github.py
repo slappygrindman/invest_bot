@@ -80,12 +80,12 @@ def get_investment_analysis() -> str:
             print("Seuil avec Coef :", round(coef*seuil*100,3),"%")
             print("Plus haut à 6 mois :", round(max_6,3))
             print("Prix :", round(close.iloc[-1],3))
-            print("Par rapport au plus haut à 6 mois :", round(pourc_haut_6m,3),"%")
+            print("Drawn down 6m :", round(pourc_haut_6m,3),"%")
 
             if pourc_haut_6m < (seuil*coef) :
-                print(f"\n🟢=​🟢​=🟢=​🟢​=​🟢 Achat 🟢=​🟢​=🟢=​🟢​=🟢​​​")
+                print(f"\n🟢 🟢​ Achat 🟢 🟢​​")
             else :
-                print("⏳⏳​ Attendre ⏳⏳​")
+                print(f"\n⏳ ⏳​ Attendre ⏳ ⏳​")
 
     finally:
         sys.stdout = original_stdout
