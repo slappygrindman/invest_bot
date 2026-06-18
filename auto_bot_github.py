@@ -11,10 +11,26 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 
 def envoyer_telegram(message):
+    if not BOT_TOKEN or not CHAT_ID:
+        print("❌ ERREUR: BOT_TOKEN ou CHAT_ID manquants!")
+        return False
+    
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
-    response = requests.post(url, json=payload)
-    return response.json()
+    
+    try:
+        response = requests.post(url, json=payload)
+        result = response.json()
+        
+        if result.get("ok"):
+            print(f"✅ Message envoyé à {CHAT_ID}")
+            return True
+        else:
+            print(f"❌ Erreur Telegram: {result.get('description')}")
+            return False
+    except Exception as e:
+        print(f"❌ Erreur lors de l'envoi: {e}")
+        return False
 
 
 # 2. Analyse complète des ETF
@@ -76,10 +92,12 @@ def get_investment_analysis() -> str:
 # 3. Envoi en découpant si > 4000 caractères (limite Telegram)
 def main():
     analyse = get_investment_analysis()
-
+    print(analyse)  # ← affiche aussi dans les logs
+    
     chunks = [analyse[i:i+4000] for i in range(0, len(analyse), 4000)]
     for chunk in chunks:
-        envoyer_telegram(chunk)
+        if not envoyer_telegram(chunk):
+            print(f"⚠️  Impossible d'envoyer un chunk")
 
 
 if __name__ == "__main__":
