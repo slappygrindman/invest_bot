@@ -16,14 +16,18 @@ def envoyer_telegram(message):
         return False
     
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
+    payload = {
+        "chat_id": CHAT_ID, 
+        "text": message
+        # ← enlever: "parse_mode": "Markdown"
+    }
     
     try:
         response = requests.post(url, json=payload)
         result = response.json()
         
         if result.get("ok"):
-            print(f"✅ Message envoyé à {CHAT_ID}")
+            print(f"✅ Message envoyé")
             return True
         else:
             print(f"❌ Erreur Telegram: {result.get('description')}")
