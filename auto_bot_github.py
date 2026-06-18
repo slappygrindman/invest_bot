@@ -72,6 +72,7 @@ def get_investment_analysis() -> str:
 
             coef = vola_6m[-1]/np.median(vola_6m)
             max_6 = max(close[moit:])
+            min_6 = max(close[moit:])
             pourc_haut_6m = ((close.iloc[-1]-max_6)/max_6)*100
 
             print(f"\n========== {ticker} ==========")
@@ -79,6 +80,7 @@ def get_investment_analysis() -> str:
             print("Seuil :", round((seuil*100),1),"%")
             print("Seuil avec Coef :", round(coef*seuil*100,3),"%")
             print("Plus haut à 6 mois :", round(max_6,3))
+            print("Plus bas à 6 mois :", round(min_6,3))
             print("Prix :", round(close.iloc[-1],3))
             print("Drawn down 6m :", round(pourc_haut_6m,3),"%")
 
