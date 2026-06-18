@@ -83,9 +83,9 @@ def get_investment_analysis() -> str:
             print("Par rapport au plus haut à 6 mois :", round(pourc_haut_6m,3),"%")
 
             if pourc_haut_6m < (seuil*coef) :
-                print("Achat 💲​")
+                print("🟢​🟢​ Achat 🟢​​🟢​​")
             else :
-                print("Attendre ⏳​")
+                print("⏳⏳​ Attendre ⏳⏳​")
 
     finally:
         sys.stdout = original_stdout
