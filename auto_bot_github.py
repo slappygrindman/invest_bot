@@ -19,7 +19,7 @@ def envoyer_telegram(message):
 
 # 2. Analyse complète des ETF
 def get_investment_analysis() -> str:
-    etfs = ["PAEEM.PA", "WPEA.PA","PE500.PA","LYTR.DE"]
+    etfs = ["PAEEM.PA", "WPEA.PA","LYTR.DE"]
     data = {}
 
     output = io.StringIO()
