@@ -72,7 +72,7 @@ def get_investment_analysis() -> str:
 
             coef = vola_6m[-1]/np.median(vola_6m)
             max_6 = max(close[moit:])
-            min_6 = max(close[moit:])
+            min_6 = min(close[moit:])
             pourc_haut_6m = ((close.iloc[-1]-max_6)/max_6)
 
             print(f"\n========== {ticker} ==========")
