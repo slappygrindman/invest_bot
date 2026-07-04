@@ -1,0 +1,34 @@
+{
+  "PAEEM.PA": {
+    "mois": "2026-07",
+    "declenches": {
+      "T1": false,
+      "T2": false,
+      "T3": false
+    }
+  },
+  "WPEA.PA": {
+    "mois": "2026-07",
+    "declenches": {
+      "T1": false,
+      "T2": false,
+      "T3": false
+    }
+  },
+  "LYTR.DE": {
+    "mois": "2026-07",
+    "declenches": {
+      "T1": true,
+      "T2": false,
+      "T3": false
+    }
+  },
+  "CMSE.PA": {
+    "mois": "2026-07",
+    "declenches": {
+      "T1": true,
+      "T2": false,
+      "T3": false
+    }
+  }
+}
