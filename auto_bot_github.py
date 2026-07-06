@@ -103,7 +103,7 @@ def verifier_seuils(ticker, pourc_haut_6m, coef, state):
 
 # 3. Analyse complète des ETF
 def get_investment_analysis():
-    etfs = ["PAEEM.PA", "WPEA.PA", "LYTR.DE", "CMSE.PA"]
+    etfs = ["PAEEM.PA", "WPEA.PA", "CMSE.PA"]
 
     state = load_state()
     signaux = []  # messages d'alerte pour les seuils nouvellement franchis
