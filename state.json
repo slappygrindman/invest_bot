@@ -2,7 +2,7 @@
   "PAEEM.PA": {
     "mois": "2026-07",
     "declenches": {
-      "T1": false,
+      "T1": true,
       "T2": false,
       "T3": false
     }
