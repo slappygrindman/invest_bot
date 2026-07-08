@@ -185,7 +185,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-import os
+'''import os
 import requests
 import yfinance as yf
 import numpy as np
@@ -295,3 +295,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+'''
