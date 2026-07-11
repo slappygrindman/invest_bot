@@ -66,11 +66,6 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=2, ensure_ascii=False)
 
-
-def get_mois_actuel():
-    return date.today().strftime("%Y-%m")
-
-
 def verifier_seuils(ticker, pourc_haut_6m, coef, state):
     """
     Compare le drawdown actuel aux seuils (ajustés par le coefficient de vol).
@@ -146,12 +141,11 @@ def get_investment_analysis():
             print(f"\n========== {ticker} ==========")
             print("Coef :", round(coef, 3))
             print("Plus haut à 6 mois :", round(max_6, 3))
-            print("Plus bas à 6 mois :", round(min_6, 3))
             print("Prix :", round(close.iloc[-1], 3))
             print("Drawn down 6m :", round(pourc_haut_6m * 100, 3), "%")
             for label, seuil in SEUILS.items():
                 deja_fait = state.get(ticker, {}).get("declenches", {}).get(label, False)
-                statut = "déjà utilisé ce mois" if deja_fait else "disponible"
+                statut = "Vérouillé" if deja_fait else "Disponible"
                 print(f"Seuil {label} ajusté : {round(seuil * coef * 100, 2)}% ({statut})")
 
             nouveaux = verifier_seuils(ticker, pourc_haut_6m, coef, state)
