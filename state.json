@@ -18,7 +18,7 @@
   "CMSE.PA": {
     "mois": "2026-07",
     "declenches": {
-      "T1": true,
+      "T1": false,
       "T2": false,
       "T3": false
     }
