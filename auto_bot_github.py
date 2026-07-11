@@ -73,30 +73,36 @@ def get_mois_actuel():
 
 def verifier_seuils(ticker, pourc_haut_6m, coef, state):
     """
-    Compare le drawdown actuel aux seuils (ajustés par le coefficient de vol),
-    renvoie la liste des seuils NOUVELLEMENT franchis ce mois-ci, et met à
-    jour `state` en mémoire (state est sauvegardé une seule fois à la fin).
+    Compare le drawdown actuel aux seuils (ajustés par le coefficient de vol).
+    Chaque seuil fonctionne comme une bascule (hystérésis) indépendante :
+      - il se déclenche (achat) la première fois que le drawdown passe EN
+        DESSOUS du seuil, puis reste verrouillé tant que le drawdown ne
+        remonte pas au-dessus de ce même seuil ;
+      - dès que le drawdown repasse au-dessus du seuil, celui-ci se
+        déverrouille (réarmement), et pourra donc redéclencher un achat la
+        prochaine fois qu'il est de nouveau franchi à la baisse.
+    Renvoie la liste des seuils nouvellement franchis à l'appel courant.
     """
-    mois = get_mois_actuel()
-
-    if ticker not in state or state[ticker].get("mois") != mois:
-        # Nouveau mois (ou ticker jamais vu) -> on réinitialise ses compteurs
-        state[ticker] = {
-            "mois": mois,
-            "declenches": {k: False for k in SEUILS},
-        }
+    if ticker not in state:
+        state[ticker] = {}
+    declenches = state[ticker].setdefault("declenches", {k: False for k in SEUILS})
+    for k in SEUILS:
+        declenches.setdefault(k, False)  # sécurité si un seuil est ajouté plus tard
 
     nouveaux = []
     for label, seuil in SEUILS.items():
         seuil_ajuste = seuil * coef
-        deja_fait = state[ticker]["declenches"].get(label, False)
-        if pourc_haut_6m <= seuil_ajuste and not deja_fait:
-            nouveaux.append({
-                "label": label,
-                "seuil_ajuste": seuil_ajuste,
-                "poids": POIDS[label],
-            })
-            state[ticker]["declenches"][label] = True
+        if pourc_haut_6m <= seuil_ajuste:
+            if not declenches[label]:
+                nouveaux.append({
+                    "label": label,
+                    "seuil_ajuste": seuil_ajuste,
+                    "poids": POIDS[label],
+                })
+                declenches[label] = True
+        else:
+            # Drawdown repassé au-dessus de ce seuil -> réarmement
+            declenches[label] = False
 
     return nouveaux
 
