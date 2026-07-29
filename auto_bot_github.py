@@ -5,186 +5,623 @@ import yfinance as yf
 import numpy as np
 import io
 import sys
-from datetime import date
+import sqlite3
+from datetime import date, datetime
 
-# 1. Récupération des secrets depuis l'environnement
+# ============================================================
+# CONFIGURATION
+# ============================================================
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-STATE_FILE = "state.json"
+DB_FILE = "invest_bot.db"
 
-# Seuils de drawdown (avant ajustement par le coefficient de volatilité)
 SEUILS = {
     "T1": -0.05,
     "T2": -0.15,
     "T3": -0.21,
 }
 
-# Répartition de l'enveloppe tactique (20% du montant mensuel) entre les seuils
 POIDS = {
     "T1": 0.20,
     "T2": 0.30,
     "T3": 0.50,
 }
 
+ETFS = [
+    ("PAEEM.PA", "Amundi PEA Emerging Markets"),
+    ("WPEA.PA", "Amundi PEA World"),
+    ("CMSE.PA", "Amundi PEA S&P 500"),
+]
 
-def envoyer_telegram(message):
-    if not BOT_TOKEN or not CHAT_ID:
-        print("❌ ERREUR: BOT_TOKEN ou CHAT_ID manquants!")
+# ============================================================
+# BASE DE DONNÉES
+# ============================================================
+def get_conn():
+    return sqlite3.connect(DB_FILE)
+
+def init_db():
+    conn = get_conn()
+    c = conn.cursor()
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS etfs (
+            ticker      TEXT PRIMARY KEY,
+            name        TEXT,
+            active      INTEGER DEFAULT 1
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS daily_closes (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker      TEXT NOT NULL,
+            date        TEXT NOT NULL,
+            close       REAL NOT NULL,
+            UNIQUE(ticker, date)
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS buy_signals (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker          TEXT NOT NULL,
+            date            TEXT NOT NULL,
+            seuil           TEXT NOT NULL,
+            seuil_value     REAL,
+            drawdown        REAL,
+            poids           REAL,
+            message         TEXT,
+            executed        INTEGER DEFAULT 0,
+            quantity        REAL,
+            price           REAL,
+            amount          REAL,
+            executed_at     TEXT,
+            note            TEXT
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS budget (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            mois                TEXT NOT NULL UNIQUE,
+            montant_mensuel     REAL,
+            enveloppe_tactique  REAL,
+            note                TEXT,
+            created_at          TEXT DEFAULT (datetime('now'))
+        )
+    """)
+
+    # État des seuils (remplace state.json)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS seuil_state (
+            ticker      TEXT NOT NULL,
+            seuil       TEXT NOT NULL,
+            declenche   INTEGER DEFAULT 0,
+            PRIMARY KEY (ticker, seuil)
+        )
+    """)
+
+    # Offset Telegram pour ne pas retraiter les mêmes messages
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_offset (
+            id          INTEGER PRIMARY KEY CHECK (id = 1),
+            last_update INTEGER DEFAULT 0
+        )
+    """)
+    c.execute("INSERT OR IGNORE INTO telegram_offset (id, last_update) VALUES (1, 0)")
+
+    # Insérer les ETF
+    c.executemany(
+        "INSERT OR IGNORE INTO etfs (ticker, name) VALUES (?, ?)",
+        ETFS
+    )
+
+    # Initialiser les seuils pour chaque ETF
+    for ticker, _ in ETFS:
+        for label in SEUILS:
+            c.execute(
+                "INSERT OR IGNORE INTO seuil_state (ticker, seuil, declenche) VALUES (?, ?, 0)",
+                (ticker, label)
+            )
+
+    conn.commit()
+    conn.close()
+
+# ============================================================
+# TELEGRAM
+# ============================================================
+def envoyer_telegram(message, chat_id=None):
+    if not BOT_TOKEN:
+        print("❌ BOT_TOKEN manquant")
+        return False
+
+    target = chat_id or CHAT_ID
+    if not target:
+        print("❌ CHAT_ID manquant")
         return False
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
-        "chat_id": CHAT_ID,
-        "text": message
+        "chat_id": target,
+        "text": message,
+        "parse_mode": "HTML"
     }
 
     try:
-        response = requests.post(url, json=payload)
-        result = response.json()
-
+        r = requests.post(url, json=payload, timeout=15)
+        result = r.json()
         if result.get("ok"):
-            print(f"✅ Message envoyé")
             return True
-        else:
-            print(f"❌ Erreur Telegram: {result.get('description')}")
-            return False
+        print(f"❌ Erreur Telegram: {result.get('description')}")
+        return False
     except Exception as e:
-        print(f"❌ Erreur lors de l'envoi: {e}")
+        print(f"❌ Exception Telegram: {e}")
         return False
 
+def get_last_update_id():
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT last_update FROM telegram_offset WHERE id = 1")
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else 0
 
-# 2. Gestion de l'état persistant (quels seuils ont déjà servi ce mois-ci)
-def load_state():
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            return json.load(f)
-    return {}
+def set_last_update_id(update_id):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("UPDATE telegram_offset SET last_update = ? WHERE id = 1", (update_id,))
+    conn.commit()
+    conn.close()
 
+def process_telegram_commands():
+    """Récupère et traite les commandes reçues depuis le dernier run."""
+    if not BOT_TOKEN:
+        return
 
-def save_state(state):
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f, indent=2, ensure_ascii=False)
+    last_id = get_last_update_id()
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
+    params = {"offset": last_id + 1, "timeout": 0}
 
-def verifier_seuils(ticker, pourc_haut_6m, coef, state):
-    """
-    Compare le drawdown actuel aux seuils (ajustés par le coefficient de vol).
-    Chaque seuil fonctionne comme une bascule (hystérésis) indépendante :
-      - il se déclenche (achat) la première fois que le drawdown passe EN
-        DESSOUS du seuil, puis reste verrouillé tant que le drawdown ne
-        remonte pas au-dessus de ce même seuil ;
-      - dès que le drawdown repasse au-dessus du seuil, celui-ci se
-        déverrouille (réarmement), et pourra donc redéclencher un achat la
-        prochaine fois qu'il est de nouveau franchi à la baisse.
-    Renvoie la liste des seuils nouvellement franchis à l'appel courant.
-    """
-    if ticker not in state:
-        state[ticker] = {}
-    declenches = state[ticker].setdefault("declenches", {k: False for k in SEUILS})
-    for k in SEUILS:
-        declenches.setdefault(k, False)  # sécurité si un seuil est ajouté plus tard
+    try:
+        r = requests.get(url, params=params, timeout=15)
+        data = r.json()
+        if not data.get("ok"):
+            print("Erreur getUpdates:", data)
+            return
 
+        updates = data.get("result", [])
+        if not updates:
+            print("Aucune nouvelle commande Telegram.")
+            return
+
+        max_id = last_id
+        for upd in updates:
+            max_id = max(max_id, upd["update_id"])
+            msg = upd.get("message") or upd.get("edited_message")
+            if not msg:
+                continue
+
+            text = (msg.get("text") or "").strip()
+            chat_id = str(msg["chat"]["id"])
+            # On ne répond qu’au chat autorisé
+            if CHAT_ID and chat_id != str(CHAT_ID):
+                continue
+
+            if not text.startswith("/"):
+                continue
+
+            print(f"Commande reçue: {text}")
+            handle_command(text, chat_id)
+
+        set_last_update_id(max_id)
+
+    except Exception as e:
+        print(f"Erreur process_telegram_commands: {e}")
+
+def handle_command(text, chat_id):
+    parts = text.split()
+    cmd = parts[0].lower().split("@")[0]  # gère /budget@MonBot
+
+    if cmd == "/help" or cmd == "/start":
+        help_text = (
+            "<b>Commandes disponibles</b>\n\n"
+            "/budget → affiche le budget du mois\n"
+            "/budget 500 → définit le budget mensuel à 500 €\n"
+            "/ok TICKER QTE → archive le dernier signal (ex: /ok PAEEM.PA 12.5)\n"
+            "/ok TICKER QTE PRIX → idem + prix d’achat\n"
+            "/signaux → 10 derniers signaux\n"
+            "/signaux pending → seulement les non exécutés\n"
+            "/historique → derniers closes\n"
+            "/historique TICKER → closes d’un ETF\n"
+            "/status → résumé global\n"
+            "/help → cette aide"
+        )
+        envoyer_telegram(help_text, chat_id)
+
+    elif cmd == "/budget":
+        if len(parts) == 1:
+            show_budget(chat_id)
+        else:
+            try:
+                montant = float(parts[1].replace(",", "."))
+                set_budget(montant, chat_id)
+            except ValueError:
+                envoyer_telegram("❌ Montant invalide. Exemple : /budget 500", chat_id)
+
+    elif cmd == "/ok":
+        if len(parts) < 3:
+            envoyer_telegram("❌ Usage : /ok TICKER QUANTITÉ [PRIX]\nExemple : /ok PAEEM.PA 12.5 34.20", chat_id)
+            return
+        ticker = parts[1].upper()
+        try:
+            qty = float(parts[2].replace(",", "."))
+            price = float(parts[3].replace(",", ".")) if len(parts) >= 4 else None
+            mark_signal_executed(ticker, qty, price, chat_id)
+        except ValueError:
+            envoyer_telegram("❌ Quantité ou prix invalide.", chat_id)
+
+    elif cmd == "/signaux":
+        pending_only = len(parts) > 1 and parts[1].lower() == "pending"
+        show_signaux(chat_id, pending_only)
+
+    elif cmd == "/historique":
+        ticker = parts[1].upper() if len(parts) > 1 else None
+        show_historique(chat_id, ticker)
+
+    elif cmd == "/status":
+        show_status(chat_id)
+
+    else:
+        envoyer_telegram("Commande inconnue. Tape /help", chat_id)
+
+# ============================================================
+# COMMANDES MÉTIER
+# ============================================================
+def set_budget(montant, chat_id):
+    mois = date.today().strftime("%Y-%m")
+    enveloppe = montant * 0.20
+
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO budget (mois, montant_mensuel, enveloppe_tactique)
+        VALUES (?, ?, ?)
+        ON CONFLICT(mois) DO UPDATE SET
+            montant_mensuel = excluded.montant_mensuel,
+            enveloppe_tactique = excluded.enveloppe_tactique
+    """, (mois, montant, enveloppe))
+    conn.commit()
+    conn.close()
+
+    envoyer_telegram(
+        f"✅ Budget du mois <b>{mois}</b> enregistré\n"
+        f"Montant mensuel : <b>{montant:.2f} €</b>\n"
+        f"Enveloppe tactique (20 %) : <b>{enveloppe:.2f} €</b>",
+        chat_id
+    )
+
+def show_budget(chat_id):
+    mois = date.today().strftime("%Y-%m")
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT montant_mensuel, enveloppe_tactique FROM budget WHERE mois = ?", (mois,))
+    row = c.fetchone()
+    conn.close()
+
+    if row:
+        envoyer_telegram(
+            f"📊 Budget {mois}\n"
+            f"Montant mensuel : <b>{row[0]:.2f} €</b>\n"
+            f"Enveloppe tactique : <b>{row[1]:.2f} €</b>",
+            chat_id
+        )
+    else:
+        envoyer_telegram(f"Aucun budget défini pour {mois}.\nUtilise /budget 500", chat_id)
+
+def mark_signal_executed(ticker, quantity, price, chat_id):
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Dernier signal non exécuté pour ce ticker
+    c.execute("""
+        SELECT id, seuil, date, drawdown FROM buy_signals
+        WHERE ticker = ? AND executed = 0
+        ORDER BY id DESC LIMIT 1
+    """, (ticker,))
+    row = c.fetchone()
+
+    if not row:
+        conn.close()
+        envoyer_telegram(f"❌ Aucun signal en attente pour <b>{ticker}</b>", chat_id)
+        return
+
+    signal_id, seuil, sig_date, drawdown = row
+    amount = quantity * price if price is not None else None
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    c.execute("""
+        UPDATE buy_signals SET
+            executed = 1,
+            quantity = ?,
+            price = ?,
+            amount = ?,
+            executed_at = ?
+        WHERE id = ?
+    """, (quantity, price, amount, now, signal_id))
+    conn.commit()
+    conn.close()
+
+    msg = (
+        f"✅ Signal archivé\n"
+        f"ETF : <b>{ticker}</b>\n"
+        f"Seuil : {seuil}\n"
+        f"Date signal : {sig_date}\n"
+        f"Quantité : <b>{quantity}</b>\n"
+    )
+    if price is not None:
+        msg += f"Prix : {price:.3f} €\nMontant : <b>{amount:.2f} €</b>\n"
+    msg += f"Validé le : {now}"
+
+    envoyer_telegram(msg, chat_id)
+
+def show_signaux(chat_id, pending_only=False):
+    conn = get_conn()
+    c = conn.cursor()
+
+    if pending_only:
+        c.execute("""
+            SELECT ticker, date, seuil, drawdown, poids
+            FROM buy_signals WHERE executed = 0
+            ORDER BY id DESC LIMIT 15
+        """)
+    else:
+        c.execute("""
+            SELECT ticker, date, seuil, drawdown, poids, executed, quantity, amount
+            FROM buy_signals ORDER BY id DESC LIMIT 12
+        """)
+
+    rows = c.fetchall()
+    conn.close()
+
+    if not rows:
+        envoyer_telegram("Aucun signal trouvé.", chat_id)
+        return
+
+    lines = ["<b>Signaux d’achat</b>\n"]
+    for r in rows:
+        if pending_only:
+            ticker, d, seuil, dd, poids = r
+            lines.append(f"🟡 {d} | {ticker} | {seuil} | DD {dd*100:.1f}% | {int(poids*100)}%")
+        else:
+            ticker, d, seuil, dd, poids, executed, qty, amount = r
+            status = "✅" if executed else "🟡"
+            extra = f" → {qty} u." if executed and qty else ""
+            lines.append(f"{status} {d} | {ticker} | {seuil}{extra}")
+
+    envoyer_telegram("\n".join(lines), chat_id)
+
+def show_historique(chat_id, ticker=None):
+    conn = get_conn()
+    c = conn.cursor()
+
+    if ticker:
+        c.execute("""
+            SELECT date, close FROM daily_closes
+            WHERE ticker = ? ORDER BY date DESC LIMIT 10
+        """, (ticker,))
+        rows = c.fetchall()
+        title = f"Historique {ticker}"
+    else:
+        c.execute("""
+            SELECT ticker, date, close FROM daily_closes
+            ORDER BY date DESC, ticker LIMIT 15
+        """)
+        rows = c.fetchall()
+        title = "Derniers closes"
+
+    conn.close()
+
+    if not rows:
+        envoyer_telegram("Aucune donnée de close.", chat_id)
+        return
+
+    lines = [f"<b>{title}</b>\n"]
+    for r in rows:
+        if ticker:
+            lines.append(f"{r[0]} : {r[1]:.3f}")
+        else:
+            lines.append(f"{r[1]} | {r[0]} : {r[2]:.3f}")
+
+    envoyer_telegram("\n".join(lines), chat_id)
+
+def show_status(chat_id):
+    mois = date.today().strftime("%Y-%m")
+    conn = get_conn()
+    c = conn.cursor()
+
+    c.execute("SELECT montant_mensuel, enveloppe_tactique FROM budget WHERE mois = ?", (mois,))
+    bud = c.fetchone()
+
+    c.execute("SELECT COUNT(*) FROM buy_signals WHERE executed = 0")
+    pending = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM buy_signals WHERE executed = 1")
+    done = c.fetchone()[0]
+
+    conn.close()
+
+    msg = f"<b>Status {mois}</b>\n\n"
+    if bud:
+        msg += f"Budget : <b>{bud[0]:.0f} €</b>\nEnveloppe tactique : <b>{bud[1]:.0f} €</b>\n\n"
+    else:
+        msg += "Budget : non défini\n\n"
+    msg += f"Signaux en attente : <b>{pending}</b>\nSignaux exécutés : <b>{done}</b>"
+
+    envoyer_telegram(msg, chat_id)
+
+# ============================================================
+# LOGIQUE MÉTIER (seuils + analyse)
+# ============================================================
+def get_seuil_state(ticker):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT seuil, declenche FROM seuil_state WHERE ticker = ?", (ticker,))
+    rows = c.fetchall()
+    conn.close()
+    return {r[0]: bool(r[1]) for r in rows}
+
+def set_seuil_declenche(ticker, seuil, value: bool):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE seuil_state SET declenche = ? WHERE ticker = ? AND seuil = ?",
+        (1 if value else 0, ticker, seuil)
+    )
+    conn.commit()
+    conn.close()
+
+def verifier_seuils(ticker, pourc_haut_6m):
+    """Retourne la liste des nouveaux seuils franchis."""
+    state = get_seuil_state(ticker)
     nouveaux = []
+
     for label, seuil in SEUILS.items():
-        seuil_ajuste = seuil
-        # seuil_ajuste = seuil * coef
-        if pourc_haut_6m <= seuil_ajuste:
-            if not declenches[label]:
+        deja = state.get(label, False)
+        if pourc_haut_6m <= seuil:
+            if not deja:
                 nouveaux.append({
                     "label": label,
-                    "seuil_ajuste": seuil_ajuste,
+                    "seuil_ajuste": seuil,
                     "poids": POIDS[label],
                 })
-                declenches[label] = True
+                set_seuil_declenche(ticker, label, True)
         else:
-            # Drawdown repassé au-dessus de ce seuil -> réarmement
-            declenches[label] = False
+            # Réarmement
+            if deja:
+                set_seuil_declenche(ticker, label, False)
 
     return nouveaux
 
+def save_daily_close(ticker, close_value):
+    today = date.today().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT OR REPLACE INTO daily_closes (ticker, date, close)
+        VALUES (?, ?, ?)
+    """, (ticker, today, float(close_value)))
+    conn.commit()
+    conn.close()
 
-# 3. Analyse complète des ETF
+def save_buy_signal(ticker, seuil_label, seuil_value, drawdown, poids, message):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO buy_signals
+        (ticker, date, seuil, seuil_value, drawdown, poids, message)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (
+        ticker,
+        date.today().isoformat(),
+        seuil_label,
+        seuil_value,
+        drawdown,
+        poids,
+        message
+    ))
+    conn.commit()
+    conn.close()
+
 def get_investment_analysis():
-    etfs = ["PAEEM.PA", "WPEA.PA", "CMSE.PA"]
-
-    state = load_state()
-    signaux = []  # messages d'alerte pour les seuils nouvellement franchis
-
+    signaux = []
     output = io.StringIO()
     original_stdout = sys.stdout
     sys.stdout = output
 
     try:
-        for ticker in etfs:
+        for ticker, _ in ETFS:
             df = yf.download(ticker, period="252d", progress=False)
-            close = df["Close"].squeeze()
+            if df.empty:
+                print(f"\n========== {ticker} ==========")
+                print("Données indisponibles")
+                continue
 
+            close = df["Close"].squeeze()
             close_list = close.tolist()
             moit = int(len(close_list) / 2)
 
             log_square = []
             for i in range(1, len(close_list)):
-                prix_veille = close_list[i - 1]
-                prix_du_jour = close_list[i]
-                log_rdm_carre = (np.log(prix_du_jour / prix_veille)) ** 2
+                log_rdm_carre = (np.log(close_list[i] / close_list[i - 1])) ** 2
                 log_square.append(log_rdm_carre)
 
             vola_6m = []
             for i in range(moit):
-                vola = np.sqrt(np.sum(log_square[i:(i + moit)]) / moit) * np.sqrt(252)
+                vola = np.sqrt(np.sum(log_square[i:i + moit]) / moit) * np.sqrt(252)
                 vola_6m.append(vola)
 
-            coef = vola_6m[-1] / np.median(vola_6m)
+            coef = vola_6m[-1] / np.median(vola_6m) if vola_6m else 1.0
             max_6 = max(close[moit:])
-            min_6 = min(close[moit:])
-            pourc_haut_6m = ((close.iloc[-1] - max_6) / max_6)
+            pourc_haut_6m = (close.iloc[-1] - max_6) / max_6
+
+            # Sauvegarde du close du jour
+            save_daily_close(ticker, close.iloc[-1])
 
             print(f"\n========== {ticker} ==========")
-            #print("Coef :", round(coef, 3))
-            print("Plus haut à 6 mois :", round(max_6, 3))
+            print("Plus haut 6 mois :", round(max_6, 3))
             print("Prix :", round(close.iloc[-1], 3))
-            print("Drawn down 6m :", round(pourc_haut_6m * 100, 1), "%")
-            for label, seuil in SEUILS.items():
-                deja_fait = state.get(ticker, {}).get("declenches", {}).get(label, False)
-                statut = "Vérouillé" if deja_fait else "Disponible"
-                print(f"Seuil {round(seuil * 100, 1)}% ({statut})")
-                #print(f"Seuil {label} ajusté : {round(seuil * coef * 100, 2)}% ({statut})")
+            print("Drawdown 6m :", round(pourc_haut_6m * 100, 1), "%")
 
-            nouveaux = verifier_seuils(ticker, pourc_haut_6m, coef, state)
+            state = get_seuil_state(ticker)
+            for label, seuil in SEUILS.items():
+                statut = "Verrouillé" if state.get(label) else "Disponible"
+                print(f"Seuil {label} ({seuil*100:.0f}%) : {statut}")
+
+            nouveaux = verifier_seuils(ticker, pourc_haut_6m)
             for n in nouveaux:
                 msg = (
-                    f"🟢 SIGNAL D'ACHAT — {ticker}\n 🟢"
-                    f"Seuil {n['label']} franchi ({round(n['seuil_ajuste'] * 100, 2)}%)\n"
-                    f"Part de l'enveloppe tactique : {int(n['poids'] * 100)}%\n"
-                    f"Drawdown actuel : {round(pourc_haut_6m * 100, 2)}%"
+                    f"🟢 SIGNAL D'ACHAT — {ticker}\n"
+                    f"Seuil {n['label']} franchi ({n['seuil_ajuste']*100:.1f}%)\n"
+                    f"Part enveloppe tactique : {int(n['poids']*100)}%\n"
+                    f"Drawdown actuel : {pourc_haut_6m*100:.2f}%"
                 )
                 signaux.append(msg)
+                save_buy_signal(
+                    ticker, n["label"], n["seuil_ajuste"],
+                    pourc_haut_6m, n["poids"], msg
+                )
                 print(f"\n{msg}")
 
     finally:
         sys.stdout = original_stdout
 
-    save_state(state)
     return output.getvalue(), signaux
 
-
-# 4. Envoi des messages (analyse + signaux séparés)
+# ============================================================
+# MAIN
+# ============================================================
 def main():
-    analyse, signaux = get_investment_analysis()
-    print(analyse)  # affiche aussi dans les logs GitHub Actions
+    print("=== Initialisation base de données ===")
+    init_db()
 
-    # Analyse complète, découpée si > 4000 caractères (limite Telegram)
+    print("=== Traitement des commandes Telegram ===")
+    process_telegram_commands()
+
+    print("=== Analyse des ETF ===")
+    analyse, signaux = get_investment_analysis()
+    print(analyse)
+
+    # Envoi de l’analyse
     chunks = [analyse[i:i + 4000] for i in range(0, len(analyse), 4000)]
     for chunk in chunks:
-        if not envoyer_telegram(chunk):
-            print("⚠️  Impossible d'envoyer un chunk d'analyse")
+        envoyer_telegram(f"<pre>{chunk}</pre>")
 
-    # Signaux d'achat nouvellement déclenchés (un message dédié par signal)
+    # Envoi des nouveaux signaux
     for signal in signaux:
-        if not envoyer_telegram(signal):
-            print("⚠️  Impossible d'envoyer un signal d'achat")
+        envoyer_telegram(signal)
 
+    print("=== Terminé ===")
 
 if __name__ == "__main__":
     main()
-    
