@@ -140,14 +140,15 @@ def get_investment_analysis():
             pourc_haut_6m = ((close.iloc[-1] - max_6) / max_6)
 
             print(f"\n========== {ticker} ==========")
-            print("Coef :", round(coef, 3))
+            #print("Coef :", round(coef, 3))
             print("Plus haut à 6 mois :", round(max_6, 3))
             print("Prix :", round(close.iloc[-1], 3))
-            print("Drawn down 6m :", round(pourc_haut_6m * 100, 3), "%")
+            print("Drawn down 6m :", round(pourc_haut_6m * 100, 1), "%")
             for label, seuil in SEUILS.items():
                 deja_fait = state.get(ticker, {}).get("declenches", {}).get(label, False)
                 statut = "Vérouillé" if deja_fait else "Disponible"
-                print(f"Seuil {label} ajusté : {round(seuil * coef * 100, 2)}% ({statut})")
+                print(f"Seuil {round(seuil * 100, 1)}% ({statut})")
+                #print(f"Seuil {label} ajusté : {round(seuil * coef * 100, 2)}% ({statut})")
 
             nouveaux = verifier_seuils(ticker, pourc_haut_6m, coef, state)
             for n in nouveaux:
