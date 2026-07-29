@@ -86,7 +86,8 @@ def verifier_seuils(ticker, pourc_haut_6m, coef, state):
 
     nouveaux = []
     for label, seuil in SEUILS.items():
-        seuil_ajuste = seuil * coef
+        seuil_ajuste = seuil
+        # seuil_ajuste = seuil * coef
         if pourc_haut_6m <= seuil_ajuste:
             if not declenches[label]:
                 nouveaux.append({
