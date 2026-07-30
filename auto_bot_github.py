@@ -296,8 +296,7 @@ def set_budget(montant, chat_id):
 
     envoyer_telegram(
         f"✅ Budget du mois <b>{mois}</b> enregistré\n"
-        f"Montant mensuel : <b>{montant:.2f} €</b>\n"
-        f"Enveloppe tactique (20 %) : <b>{enveloppe:.2f} €</b>",
+        f"Montant mensuel : <b>{montant:.2f} €</b>\n",
         chat_id
     )
 
@@ -312,12 +311,11 @@ def show_budget(chat_id):
     if row:
         envoyer_telegram(
             f"📊 Budget {mois}\n"
-            f"Montant mensuel : <b>{row[0]:.2f} €</b>\n"
-            f"Enveloppe tactique : <b>{row[1]:.2f} €</b>",
+            f"Montant mensuel : <b>{row[0]:.2f} €</b>\n",
             chat_id
         )
     else:
-        envoyer_telegram(f"Aucun budget défini pour {mois}.\nUtilise /budget 500", chat_id)
+        envoyer_telegram(f"Aucun budget défini pour {mois}.\nUtilise /budget", chat_id)
 
 def mark_signal_executed(ticker, quantity, price, chat_id):
     conn = get_conn()
