@@ -12,6 +12,7 @@ from datetime import date, datetime
 # CONFIGURATION
 # ============================================================
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+print(BOT_TOKEN)
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 DB_FILE = "invest_bot.db"
