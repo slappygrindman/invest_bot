@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, Application, ContextTypes
 
-API_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+API_TOKEN = os.environ.get("GRAPH_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Welcome to the Simple Telegram Bot!")
