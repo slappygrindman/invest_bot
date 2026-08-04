@@ -38,7 +38,7 @@ jobs:
     # 4. Lance le script en lui passant les Secrets GitHub
     - name: Exécuter le script Python
       env:
-        TELEGRAM_BOT_TOKEN: ${{ secrets.GRAPH_TOKEN }}
+        GRAPH_TOKEN: ${{ secrets.GRAPH_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: python graph_telegram.py
 
