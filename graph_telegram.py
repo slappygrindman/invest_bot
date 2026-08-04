@@ -169,7 +169,13 @@ def main():
 
     )
 
-    updates = r.json()["result"]
+    #updates = r.json()["result"]
+
+    response = r.json()
+
+print(response)
+
+updates = response["result"]
 
     if len(updates) == 0:
         return
