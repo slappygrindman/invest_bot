@@ -5,6 +5,7 @@ TICKERS = {
 import os
 import json
 import requests
+import sys
 import yfinance as yf
 import matplotlib.pyplot as plt
 
