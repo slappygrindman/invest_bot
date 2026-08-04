@@ -172,7 +172,7 @@ def main():
 
     print(response)
 
-    if not response.get("ok")
+    if not response.get("ok"):
         print("Erreur Telegram :", data
         return
               
