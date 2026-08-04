@@ -10,7 +10,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 
 TOKEN = os.environ.get("GRAPH_TOKEN")
-print(TOKEN)
+print("token :", TOKEN)
 BASE = f"https://api.telegram.org/bot{TOKEN}"
 OFFSET_FILE = "offset.txt"
 
