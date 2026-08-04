@@ -159,23 +159,24 @@ def main():
     offset = get_offset()
 
     r = requests.get(
-
         f"{BASE}/getUpdates",
-
         params={
             "offset": offset + 1,
             "timeout": 0,
         },
-
     )
 
     #updates = r.json()["result"]
 
     response = r.json()
 
-print(response)
+    print(response)
 
-updates = response["result"]
+    if not response.get("ok")
+        print("Erreur Telegram :", data
+        return
+              
+    updates = response["result"]
 
     if len(updates) == 0:
         return
