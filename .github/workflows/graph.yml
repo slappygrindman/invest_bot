@@ -1,9 +1,8 @@
 name: graph
+
 on:
-  # Permet de lancer le script manuellement depuis l'onglet "Actions" sur GitHub
   workflow_dispatch:
 
-  # Déclenchement automatique (actuellement : tous les mercredis à 9h00 UTC)
   schedule:
     - cron: "*/5 * * * *"
 
@@ -11,13 +10,13 @@ jobs:
   run-python-script:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # nécessaire pour que le job puisse push state.json
+      contents: write
+
     steps:
-    # 1. Récupère le code du dépôt (y compris state.json à jour)
+
     - name: Checker le code
       uses: actions/checkout@v4
 
-    # 2. Installe Python
     - name: Configurer Python
       uses: actions/setup-python@v5
       with:
@@ -25,19 +24,27 @@ jobs:
 
     - name: Afficher heure d execution
       run: |
-          echo "=== Heure d'exécution ==="
-          echo "UTC  : $(date -u)"
-          echo "Local: $(date)"
+        echo "=== Heure d'exécution ==="
+        echo "UTC  : $(date -u)"
+        echo "Local: $(date)"
 
-    # 3. Installe les dépendances (yfinance, requests)
     - name: Installer les dépendances
       run: |
-       python -m pip install --upgrade pip
-       pip install -r requirements_graph.txt
+        python -m pip install --upgrade pip
+        pip install -r requirements_graph.txt
 
-    # 4. Lance le script en lui passant les Secrets GitHub
     - name: Exécuter le script Python
       env:
         GRAPH_TOKEN: ${{ secrets.GRAPH_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: python graph_telegram.py
+
+    - name: Sauvegarder offset.txt
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add offset.txt
+        git diff --cached --quiet || git commit -m "Update Telegram offset"
+        git push
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: python graph_telegram.py
