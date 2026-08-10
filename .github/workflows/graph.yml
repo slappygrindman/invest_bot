@@ -46,5 +46,3 @@ jobs:
         git add offset.txt
         git diff --cached --quiet || git commit -m "Update Telegram offset"
         git push
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      run: python graph_telegram.py
