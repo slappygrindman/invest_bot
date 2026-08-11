@@ -63,34 +63,26 @@ def make_curve(code, days):
         auto_adjust=True,
     )
     print("yfinance a touné")
-
+    closes = data["Close"].squeeze().tolist()
+    closes_max_6 = [np.max(closes[i-126:i]) for i in range(len(closes))]
+    closes_S1 = 0
+    closes_S2 = 0
+    closes_S3 = 0
+    
     if data.empty:
         return None
 
     plt.figure(figsize=(10,5))
-
-    plt.plot(
-        data.index,
-        data["Close"],
-        linewidth=2,
-    )
-
+    plt.plot(data.index, data["Close"], linewidth=2, clour="blue")
+    plt.plot(data.index, closes_max_6, linewidth=1, colour="green")
     plt.grid(True)
-
     plt.title(f"{code.upper()} - {days} jours")
-
     plt.tight_layout()
-
     filename = "curve.png"
-
     plt.savefig(filename)
-
     plt.close()
 
     return filename
-
-
-# -----------------------------
 
 def process(update):
 
