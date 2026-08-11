@@ -10,7 +10,6 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 
 TOKEN = os.environ.get("GRAPH_TOKEN")
-print("token :", TOKEN)
 BASE = f"https://api.telegram.org/bot{TOKEN}"
 OFFSET_FILE = "offset.txt"
 
@@ -63,6 +62,7 @@ def make_curve(code, days):
         progress=False,
         auto_adjust=True,
     )
+    print("yfinance a touné")
 
     if data.empty:
         return None
