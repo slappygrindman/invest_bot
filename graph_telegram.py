@@ -78,8 +78,8 @@ def make_curve(code, days):
         return None
 
     plt.figure(figsize=(10,5))
-    plt.plot(data.index, data["Close"], linewidth=2, clour="blue")
-    plt.plot(data.index, closes_max_6, linewidth=1, colour="green")
+    plt.plot(data.index, data["Close"], linewidth=2, color="blue")
+    plt.plot(data.index, closes_max_6, linewidth=1, color="green")
     plt.grid(True)
     plt.title(f"{code.upper()} - {days} jours")
     plt.tight_layout()
