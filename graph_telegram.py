@@ -8,6 +8,7 @@ import requests
 import sys
 import yfinance as yf
 import matplotlib.pyplot as plt
+import numpy as np
 
 TOKEN = os.environ.get("GRAPH_TOKEN")
 BASE = f"https://api.telegram.org/bot{TOKEN}"
