@@ -65,7 +65,11 @@ def make_curve(code, days):
     )
     print("yfinance a touné")
     closes = data["Close"].squeeze().tolist()
-    closes_max_6 = [np.max(closes[i-126:i]) for i in range(len(closes))]
+    window = 126
+    closes_max_6 = [
+        np.max(closes[max(0, i - window + 1):i + 1])
+        for i in range(len(closes))
+    ]
     closes_S1 = 0
     closes_S2 = 0
     closes_S3 = 0
