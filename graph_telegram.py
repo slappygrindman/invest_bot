@@ -1,6 +1,9 @@
 TICKERS = {
     "wld": "CW8.PA",
     "eme": "PAEEM.PA"}
+S1 = 0.05
+S2 = 0.15
+S3 = 0.21
 
 import os
 import json
@@ -70,9 +73,9 @@ def make_curve(code, days):
         np.max(closes[max(0, i - window + 1):i + 1])
         for i in range(len(closes))
     ]
-    closes_S1 = 0
-    closes_S2 = 0
-    closes_S3 = 0
+    closes_S1 = [x * (1-S1) for x in closes_max_6]
+    closes_S2 = [x * (1-S2) for x in closes_max_6]
+    closes_S3 = [x * (1-S3) for x in closes_max_6]
     
     if data.empty:
         return None
@@ -80,6 +83,9 @@ def make_curve(code, days):
     plt.figure(figsize=(10,5))
     plt.plot(data.index, data["Close"], linewidth=2, color="blue")
     plt.plot(data.index, closes_max_6, linewidth=1, color="green")
+    plt.plot(data.index, closes_S1, linewidth=1, color="orange")
+    plt.plot(data.index, closes_S2, linewidth=1, color="red")
+    plt.plot(data.index, closes_S3, linewidth=1, color="purple")
     plt.grid(True)
     plt.title(f"{code.upper()} - {days} jours")
     plt.tight_layout()
