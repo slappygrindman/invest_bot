@@ -1,6 +1,7 @@
 TICKERS = {
     "wld": "CW8.PA",
-    "eme": "PAEEM.PA"}
+    "eme": "PAEEM.PA",
+    "como": "CMSE.PA"}
 S1 = 0.05
 S2 = 0.15
 S3 = 0.21
