@@ -598,19 +598,22 @@ def get_investment_analysis():
             coef = vola_6m[-1] / np.median(vola_6m) if vola_6m else 1.0
             max_6 = max(close[moit:])
             pourc_haut_6m = (close.iloc[-1] - max_6) / max_6
+            jour = round(close.iloc[-1], 3)
+            veille = round(close.iloc[-2], 3)
 
             # Sauvegarde du close du jour
             save_daily_close(ticker, close.iloc[-1])
 
             print(f"\n========== {ticker} ==========")
             print("Plus haut 6 mois :", round(max_6, 3))
-            print("Prix :", round(close.iloc[-1], 3))
+            print("Prix :", jour)
             print("Drawdown 6m :", round(pourc_haut_6m * 100, 1), "%")
+            print("Rendement veille :", round(((jour-veille)/veille)*100, 3),"%")
 
             state = get_seuil_state(ticker)
             for label, seuil in SEUILS.items():
-                statut = "Verrouillé" if state.get(label) else "Disponible"
-                print(f"Seuil {label} ({seuil*100:.0f}%) : {statut}")
+                statut = "❌" if state.get(label) else "🟢"
+                print(f"S {seuil*100:.0f}% : {statut}")
 
             nouveaux = verifier_seuils(ticker, pourc_haut_6m)
             for n in nouveaux:
