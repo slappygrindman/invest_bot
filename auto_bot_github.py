@@ -611,7 +611,7 @@ def get_investment_analysis():
             state = get_seuil_state(ticker)
             for label, seuil in SEUILS.items():
                 statut = "❌" if state.get(label) else "🟢"
-                print(f"S {seuil*100:.0f}% : {statut}")
+                print(f"{seuil*100:.1f}% : {statut}")
 
             nouveaux = verifier_seuils(ticker, pourc_haut_6m)
             for n in nouveaux:
