@@ -17,9 +17,9 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 DB_FILE = "invest_bot.db"
 
 SEUILS = {
-    "T1": -0.05,
-    "T2": -0.15,
-    "T3": -0.21,
+    "T1": -0.035,
+    "T2": -0.7,
+    "T3": -0.15,
 }
 
 POIDS = {
@@ -29,9 +29,7 @@ POIDS = {
 }
 
 ETFS = [
-    ("PAEEM.PA", "Amundi PEA Emerging Markets"),
     ("WPEA.PA", "Amundi PEA World"),
-    ("CMSE.PA", "Amundi PEA S&P 500"),
 ]
 
 # ============================================================
