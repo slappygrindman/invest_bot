@@ -29,8 +29,7 @@ POIDS = {
 }
 
 ETFS = [
-    ("WPEA.PA", "Amundi PEA World"),
-    ("PAEEM.PA", "EMERGENT"),
+    ("WPEA.PA", "World"),
 ]
 
 # ============================================================
